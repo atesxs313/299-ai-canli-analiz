@@ -1,0 +1,10 @@
+[project]
+name = "299-ai-canli-analiz"
+version = "0.1.0"
+description = "299+ Ai Canli Analiz Platformu"
+requires-python = ">=3.11"
+dependencies = [
+    "flask>=3.1.3",
+    "schedule>=1.2.2",
+    "requests>=2.32.0",
+]

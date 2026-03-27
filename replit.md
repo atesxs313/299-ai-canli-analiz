@@ -2,7 +2,7 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+pnpm workspace monorepo using TypeScript + Python Flask app (299+ Ai Canli Analiz).
 
 ## Stack
 
@@ -10,8 +10,8 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Node.js version**: 24
 - **Package manager**: pnpm
 - **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
+- **API framework**: Express 5 (api-server) + Flask (Python)
+- **Database**: PostgreSQL + Drizzle ORM (Node), SQLite (Python Flask app)
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
@@ -22,26 +22,81 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 artifacts-monorepo/
 ├── artifacts/              # Deployable applications
 │   └── api-server/         # Express API server
+├── python/                 # Python Flask app (299+ Ai Canli Analiz)
+│   ├── main.py             # Flask app - Ana uygulama (port 5000)
+│   ├── api_canli.py        # API-Football entegrasyonu
+│   ├── ligler.py           # Lig listesi ve mappingleri
+│   ├── market_olusturucu.py# Bahis market olusturucu
+│   ├── veri_bot.py         # Veri guncelleme botu + zamanlayici
+│   ├── index.html          # Ana frontend
+│   ├── admin.html          # Admin paneli
+│   ├── api_veri.json       # Veri cache dosyasi
+│   └── veritabani.db       # SQLite kullanici veritabani
 ├── lib/                    # Shared libraries
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
 │   ├── api-zod/            # Generated Zod schemas from OpenAPI
 │   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
-├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
+├── scripts/                # Utility scripts
+├── pyproject.toml          # Python dependencies (flask, schedule, requests)
+├── pnpm-workspace.yaml     # pnpm workspace
+├── tsconfig.base.json      # Shared TS options
 ├── tsconfig.json           # Root TS project references
-└── package.json            # Root package with hoisted devDeps
+└── package.json            # Root package
 ```
+
+## Python App (299+ Ai)
+
+### Data Flow
+1. **Primary**: API-Football (api-sports.io) fetches real fixtures for today + tomorrow
+2. **Fallback**: Simulated data generator with realistic schedules if API fails
+3. **Other sports**: Basketball, Volleyball, Tennis use simulated data (API covers football only)
+4. **Auto-refresh**: Every 6 hours + midnight (00:00, 00:05 IST) via scheduler
+5. **Client refresh**: Every 5 minutes + on day change detection
+
+### Key Features
+- 60+ betting markets per football match (MS, Alt/Üst, Handikap, Korner, Kart, Tam Skor etc.)
+- AI probability analysis for each market
+- User auth system (register/login with SQLite)
+- Admin panel (/admin) with stats, messages, users management
+- "Günün Kuponu" and "Günün Kombinesi" features
+- Istanbul UTC+3 timezone throughout
+- League filtering, date tabs, sport tabs
+- Profile photo upload
+- Coupon save/load/delete system (30-day retention)
+
+### Role System (Hierarchy)
+- **Kurucu** (Founder): Full access, can manage admins, cannot be deleted/changed
+- **Admin**: Can manage users (VIP/Normal), view admin panel, cannot touch kurucu
+- **VIP**: Paid tier user (assigned by admin/kurucu)
+- **Kullanıcı** (Normal): Standard free user
+
+### Email / Verification
+- SMTP via env vars: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+- If SMTP not configured, codes printed to console (simulated)
+- Email verification: 6-digit code, 10-min expiry, 5-attempt brute-force protection
+- Password reset: Same code system, available from login page
+- Old codes invalidated when new ones sent
+
+### API Integration (api_canli.py)
+- Uses `API_FOOTBALL_KEY` environment secret
+- Maps 55+ API-Football league IDs to internal system
+- Free plan: 100 requests/day, access to today + tomorrow fixtures
+- Generates AI analysis/odds from real team data
+- Falls back to veri_bot.py simulated data on API failure
+
+### Auth
+- Kurucu (founder): username=`admin`, password=`admin`
+- Session: cookie-based, SameSite=Lax, 7-day lifetime
+- SECRET_KEY from env or hardcoded fallback
+
+### Workflows
+- `Start application` - Flask app (port 5000) - Ana uygulama
+- `artifacts/api-server: API Server` - Express proxy (port 8080)
 
 ## TypeScript & Composite Projects
 
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references. This means:
-
-- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`). This builds the full dependency graph so that cross-package imports resolve correctly. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
-- **`emitDeclarationOnly`** — we only emit `.d.ts` files during typecheck; actual JS bundling is handled by esbuild/tsx/vite...etc, not `tsc`.
-- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array. `tsc --build` uses this to determine build order and skip up-to-date packages.
+Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references.
 
 ## Root Scripts
 
@@ -52,45 +107,17 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 
 ### `artifacts/api-server` (`@workspace/api-server`)
 
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
-
-- Entry: `src/index.ts` — reads `PORT`, starts Express
-- App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
-- Depends on: `@workspace/db`, `@workspace/api-zod`
-- `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
+Express 5 API server. Routes live in `src/routes/`.
 
 ### `lib/db` (`@workspace/db`)
 
-Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client instance and schema models.
-
-- `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
-- `src/schema/index.ts` — barrel re-export of all models
-- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
-- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
-- Exports: `.` (pool, db, schema), `./schema` (schema only)
-
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
+Database layer using Drizzle ORM with PostgreSQL.
 
 ### `lib/api-spec` (`@workspace/api-spec`)
 
-Owns the OpenAPI 3.1 spec (`openapi.yaml`) and the Orval config (`orval.config.ts`). Running codegen produces output into two sibling packages:
-
-1. `lib/api-client-react/src/generated/` — React Query hooks + fetch client
-2. `lib/api-zod/src/generated/` — Zod schemas
-
+Owns the OpenAPI 3.1 spec and Orval config.
 Run codegen: `pnpm --filter @workspace/api-spec run codegen`
-
-### `lib/api-zod` (`@workspace/api-zod`)
-
-Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used by `api-server` for response validation.
-
-### `lib/api-client-react` (`@workspace/api-client-react`)
-
-Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
 
 ### `scripts` (`@workspace/scripts`)
 
-Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+Utility scripts package.
