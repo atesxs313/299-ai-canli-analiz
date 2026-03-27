@@ -226,6 +226,12 @@
                     <span class="ikon">&#127920;</span> Kuponlar
                     <span class="rozet" id="kuponRozet" style="display:none">0</span>
                 </button>
+                <button class="kenar-link" onclick="bolumAc(this,'market')">
+                    <span class="ikon">&#128722;</span> AI Market
+                </button>
+                <button class="kenar-link" onclick="bolumAc(this,'bakiye')">
+                    <span class="ikon">&#128176;</span> Bakiye
+                </button>
                 <button class="kenar-link" onclick="bolumAc(this,'maclar')">
                     <span class="ikon">&#9917;</span> Mac Verileri
                 </button>
@@ -353,6 +359,80 @@
                     </div>
                 </div>
 
+                <div class="bolum" id="market">
+                    <div class="kart">
+                        <div class="kart-baslik">
+                            <h3>&#128722; Urun Ekle</h3>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                            <div class="form-alan" style="margin-bottom:0">
+                                <label>Urun Adi</label>
+                                <input type="text" id="mIsim" placeholder="VIP Uyelik" style="width:100%;padding:10px 14px;background:#161826;border:1.5px solid #333;border-radius:8px;color:white;font-size:14px;outline:none;font-family:inherit">
+                            </div>
+                            <div class="form-alan" style="margin-bottom:0">
+                                <label>Fiyat (TL)</label>
+                                <input type="number" id="mFiyat" placeholder="49.99" min="0" step="0.01" style="width:100%;padding:10px 14px;background:#161826;border:1.5px solid #333;border-radius:8px;color:white;font-size:14px;outline:none;font-family:inherit">
+                            </div>
+                            <div class="form-alan" style="margin-bottom:0">
+                                <label>Kategori</label>
+                                <input type="text" id="mKategori" placeholder="VIP, Analiz, Paket..." style="width:100%;padding:10px 14px;background:#161826;border:1.5px solid #333;border-radius:8px;color:white;font-size:14px;outline:none;font-family:inherit">
+                            </div>
+                            <div class="form-alan" style="margin-bottom:0">
+                                <label>Ikon (emoji veya bos birak)</label>
+                                <input type="text" id="mResim" placeholder="&#11088; veya bos birak" style="width:100%;padding:10px 14px;background:#161826;border:1.5px solid #333;border-radius:8px;color:white;font-size:14px;outline:none;font-family:inherit">
+                            </div>
+                            <div class="form-alan" style="grid-column:1/-1;margin-bottom:0">
+                                <label>Aciklama</label>
+                                <input type="text" id="mAciklama" placeholder="Urun aciklamasi" style="width:100%;padding:10px 14px;background:#161826;border:1.5px solid #333;border-radius:8px;color:white;font-size:14px;outline:none;font-family:inherit">
+                            </div>
+                        </div>
+                        <button class="btn btn-basari" style="margin-top:14px" onclick="marketUrunEkle()">+ Urun Ekle</button>
+                        <div id="marketMsj" style="margin-top:10px;font-size:13px;min-height:20px;"></div>
+                    </div>
+                    <div class="kart">
+                        <div class="kart-baslik">
+                            <h3>Mevcut Urunler</h3>
+                            <button class="btn btn-birincil" onclick="adminMarketUrunleriYukle()">&#8635; Yenile</button>
+                        </div>
+                        <div class="tablo-wrap" id="adminMarketListesi"><div class="bos-durum">Yukleniyor...</div></div>
+                    </div>
+                </div>
+
+                <div class="bolum" id="bakiye">
+                    <div class="kart">
+                        <div class="kart-baslik">
+                            <h3>&#128176; Kullaniciya Bakiye Ekle</h3>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+                            <div>
+                                <label style="display:block;color:#aaa;margin-bottom:6px;font-size:12px;text-transform:uppercase">Kullanici ID</label>
+                                <input type="number" id="bKullaniciId" placeholder="Kullanici ID" style="width:100%;padding:10px 14px;background:#161826;border:1.5px solid #333;border-radius:8px;color:white;font-size:14px;outline:none;font-family:inherit">
+                            </div>
+                            <div>
+                                <label style="display:block;color:#aaa;margin-bottom:6px;font-size:12px;text-transform:uppercase">Miktar (TL)</label>
+                                <input type="number" id="bMiktar" placeholder="50.00" step="0.01" style="width:100%;padding:10px 14px;background:#161826;border:1.5px solid #333;border-radius:8px;color:white;font-size:14px;outline:none;font-family:inherit">
+                            </div>
+                            <div>
+                                <label style="display:block;color:#aaa;margin-bottom:6px;font-size:12px;text-transform:uppercase">Aciklama</label>
+                                <input type="text" id="bAciklama" placeholder="Manuel yukleme" style="width:100%;padding:10px 14px;background:#161826;border:1.5px solid #333;border-radius:8px;color:white;font-size:14px;outline:none;font-family:inherit">
+                            </div>
+                        </div>
+                        <button class="btn btn-basari" style="margin-top:14px" onclick="adminBakiyeEkle()">+ Bakiye Ekle</button>
+                        <div id="bakiyeMsj" style="margin-top:10px;font-size:13px;min-height:20px;"></div>
+                    </div>
+                    <div class="kart">
+                        <div class="kart-baslik">
+                            <h3>Kullanici Bakiyeleri</h3>
+                            <button class="btn btn-birincil" onclick="adminBakiyeListesiYukle()">&#8635; Yenile</button>
+                        </div>
+                        <div class="tablo-wrap" id="adminBakiyeListesi"><div class="bos-durum">Yukleniyor...</div></div>
+                    </div>
+                    <div class="kart">
+                        <div class="kart-baslik"><h3>Son Islemler</h3></div>
+                        <div class="tablo-wrap" id="adminIslemListesi"><div class="bos-durum">Yukleniyor...</div></div>
+                    </div>
+                </div>
+
                 <div class="bolum" id="maclar">
                     <div class="kart">
                         <div class="kart-baslik">
@@ -417,9 +497,11 @@ function bolumAc(btn,id){
     document.querySelectorAll('.bolum').forEach(b=>b.classList.remove('aktif'));
     btn.classList.add('aktif');
     document.getElementById(id).classList.add('aktif');
-    const basliklar={dashboard:'Dashboard',kullanicilar:'Kullanicilar',mesajlar:'Mesajlar',kuponlar:'Kuponlar',maclar:'Mac Verileri',ayarlar:'Ayarlar'};
+    const basliklar={dashboard:'Dashboard',kullanicilar:'Kullanicilar',mesajlar:'Mesajlar',kuponlar:'Kuponlar',market:'AI Market',bakiye:'Bakiye Yonetimi',maclar:'Mac Verileri',ayarlar:'Ayarlar'};
     document.getElementById('sayfaBaslik').textContent=basliklar[id]||'';
     if(id==='kuponlar') kuponlariYukle();
+    if(id==='market') adminMarketUrunleriYukle();
+    if(id==='bakiye') adminBakiyeListesiYukle();
     mobilMenuKapat();
 }
 
@@ -718,13 +800,14 @@ async function kuponlariYukle(){
         if(!liste.length){alan.innerHTML='<div class="bos-durum">Kupon bulunamadi.</div>';return}
         const badgeSinif={kazandi:'badge-kazandi',kaybetti:'badge-kaybetti',bekliyor:'badge-bekliyor'};
         const sonucIsim={kazandi:'&#9989; Kazandi',kaybetti:'&#10060; Kaybetti',bekliyor:'&#9203; Bekliyor'};
-        let html='<table class="tablo"><thead><tr><th>ID</th><th>Kullanici</th><th>Mac</th><th>Toplam Oran</th><th>Tarih</th><th>Sonuc</th><th>Islem</th></tr></thead><tbody>';
+        let html='<table class="tablo"><thead><tr><th>ID</th><th>Kullanici</th><th>Isim</th><th>Mac</th><th>Toplam Oran</th><th>Tarih</th><th>Sonuc</th><th>Islem</th></tr></thead><tbody>';
         liste.forEach(k=>{
-            const macOzet=k.maclar&&k.maclar.length?k.maclar.map(m=>(m.ev||'?')+' - '+(m.dep||'?')).join('<br>'):'-';
+            const macOzet=k.maclar&&k.maclar.length?k.maclar.map(m=>(m.isim||m.ev||'?')+' → '+(m.secim||'?')).join('<br>'):'-';
             const sn=k.sonuc||'bekliyor';
             html+=`<tr>
                 <td style="color:#666">#${k.id}</td>
                 <td><strong style="color:#ffc107">${esc(k.kullanici_adi)}</strong></td>
+                <td style="color:#aaa;font-size:12px">${esc(k.isim||'-')}</td>
                 <td style="font-size:12px;max-width:200px">${macOzet}</td>
                 <td style="font-weight:bold;color:#66b2ff">${parseFloat(k.toplam_oran||1).toFixed(2)}</td>
                 <td style="color:#666;font-size:12px">${esc(k.tarih)}</td>
@@ -748,6 +831,140 @@ async function kuponSonucGuncelle(id,sonuc){
         if(d.basarili){kuponlariYukle();istatistikleriYukle();}
         else alert(d.mesaj||'Hata olustu.');
     }catch(e){alert('Baglanti hatasi.')}
+}
+
+// ==================== MARKET ====================
+
+async function adminMarketUrunleriYukle(){
+    const alan=document.getElementById('adminMarketListesi');
+    alan.innerHTML='<div class="bos-durum">Yukleniyor...</div>';
+    try{
+        const r=await fetch('/data/admin/market/urunler');const d=await r.json();
+        if(!d.urunler||d.urunler.length===0){alan.innerHTML='<div class="bos-durum">Henuz urun yok. Yukardaki formdan ekleyin.</div>';return}
+        let html='<table class="tablo"><thead><tr><th>ID</th><th>Isim</th><th>Fiyat</th><th>Kategori</th><th>Aciklama</th><th>Durum</th><th>Islem</th></tr></thead><tbody>';
+        d.urunler.forEach(u=>{
+            const aktif=u.aktif?'<span style="color:#5dd879">Aktif</span>':'<span style="color:#ff6b6b">Pasif</span>';
+            html+=`<tr>
+                <td style="color:#666">#${u.id}</td>
+                <td><strong>${esc(u.isim)}</strong>${u.resim?' <span>'+esc(u.resim)+'</span>':''}</td>
+                <td style="color:#ffc107;font-weight:bold">${parseFloat(u.fiyat).toFixed(2)} TL</td>
+                <td><span class="badge badge-vip">${esc(u.kategori||'Genel')}</span></td>
+                <td style="color:#888;font-size:12px">${esc(u.aciklama||'-')}</td>
+                <td>${aktif}</td>
+                <td class="aksyon-td">
+                    <button class="btn btn-uyari btn-kucuk" onclick="urunAktifToggle(${u.id},${u.aktif?0:1})">${u.aktif?'Pasif Yap':'Aktif Yap'}</button>
+                    <button class="btn btn-tehlike btn-kucuk" onclick="urunSil(${u.id},'${esc(u.isim).replace(/'/g,"\\'")}')">&#128465; Sil</button>
+                </td>
+            </tr>`;
+        });
+        html+='</tbody></table>';
+        alan.innerHTML=html;
+    }catch(e){alan.innerHTML='<div class="bos-durum">Urunler yuklenemedi.</div>'}
+}
+
+async function marketUrunEkle(){
+    const isim=document.getElementById('mIsim').value.trim();
+    const fiyat=document.getElementById('mFiyat').value;
+    const kategori=document.getElementById('mKategori').value.trim()||'Genel';
+    const resim=document.getElementById('mResim').value.trim();
+    const aciklama=document.getElementById('mAciklama').value.trim();
+    const msj=document.getElementById('marketMsj');
+    if(!isim||!fiyat){msj.style.color='#ff6b6b';msj.textContent='Urun adi ve fiyat zorunlu.';return}
+    try{
+        const r=await fetch('/data/admin/market/urun_ekle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({isim,fiyat:parseFloat(fiyat),kategori,resim,aciklama})});
+        const d=await r.json();
+        if(d.basarili){
+            msj.style.color='#5dd879';msj.textContent=d.mesaj;
+            document.getElementById('mIsim').value='';document.getElementById('mFiyat').value='';
+            document.getElementById('mKategori').value='';document.getElementById('mResim').value='';
+            document.getElementById('mAciklama').value='';
+            adminMarketUrunleriYukle();
+        }else{msj.style.color='#ff6b6b';msj.textContent=d.mesaj}
+    }catch(e){msj.style.color='#ff6b6b';msj.textContent='Baglanti hatasi.'}
+}
+
+async function urunAktifToggle(id,aktif){
+    const alan=document.getElementById('adminMarketListesi');
+    try{
+        const r=await fetch('/data/admin/market/urun_guncelle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,aktif:aktif===1,isim:'_update_only_'})});
+        // Tum alanlari yukleyerek guncelle
+        const r2=await fetch('/data/admin/market/urunler');const d2=await r2.json();
+        const urun=d2.urunler&&d2.urunler.find(u=>u.id===id);
+        if(urun){
+            const r3=await fetch('/data/admin/market/urun_guncelle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,isim:urun.isim,fiyat:urun.fiyat,kategori:urun.kategori,resim:urun.resim,aciklama:urun.aciklama,aktif})});
+            await r3.json();
+        }
+        adminMarketUrunleriYukle();
+    }catch(e){alert('Hata olustu.')}
+}
+
+async function urunSil(id,isim){
+    if(!confirm('"'+isim+'" urununu silmek istediginize emin misiniz?'))return;
+    try{
+        const r=await fetch('/data/admin/market/urun_sil',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+        const d=await r.json();
+        if(d.basarili){adminMarketUrunleriYukle();}else{alert(d.mesaj||'Hata')}
+    }catch(e){alert('Baglanti hatasi.')}
+}
+
+// ==================== BAKIYE ====================
+
+async function adminBakiyeListesiYukle(){
+    try{
+        const r=await fetch('/data/admin/bakiye_listesi');const d=await r.json();
+        const alan=document.getElementById('adminBakiyeListesi');
+        if(!d.bakiyeler||d.bakiyeler.length===0){alan.innerHTML='<div class="bos-durum">Hicbir kullanici bakiyesi yok.</div>'}
+        else{
+            let html='<table class="tablo"><thead><tr><th>ID</th><th>Kullanici</th><th>Bakiye (TL)</th><th>Son Guncelleme</th></tr></thead><tbody>';
+            d.bakiyeler.forEach(b=>{
+                html+=`<tr>
+                    <td style="color:#666">#${b.kullanici_id}</td>
+                    <td><strong style="color:#ffc107">${esc(b.kullanici_adi||'?')}</strong></td>
+                    <td style="color:#5dd879;font-weight:bold;font-size:16px">${parseFloat(b.bakiye||0).toFixed(2)} TL</td>
+                    <td style="color:#666;font-size:12px">${esc(b.guncelleme||'-')}</td>
+                </tr>`;
+            });
+            html+='</tbody></table>';alan.innerHTML=html;
+        }
+        const islemAlan=document.getElementById('adminIslemListesi');
+        if(!d.islemler||d.islemler.length===0){islemAlan.innerHTML='<div class="bos-durum">Islem bulunamadi.</div>'}
+        else{
+            const turRenk={yukle:'#5dd879',satin_al:'#ff6b6b',admin_ekle:'#ffc107'};
+            const turIsim={yukle:'Bakiye Yukleme',satin_al:'Satin Alma',admin_ekle:'Admin Ekleme'};
+            let html='<table class="tablo"><thead><tr><th>ID</th><th>Kullanici</th><th>Miktar</th><th>Tur</th><th>Aciklama</th><th>Tarih</th></tr></thead><tbody>';
+            d.islemler.forEach(i=>{
+                const renk=i.miktar>0?'#5dd879':'#ff6b6b';
+                html+=`<tr>
+                    <td style="color:#666">#${i.id}</td>
+                    <td><strong>${esc(i.kullanici_adi||'?')}</strong></td>
+                    <td style="color:${renk};font-weight:bold">${i.miktar>0?'+':''}${parseFloat(i.miktar).toFixed(2)} TL</td>
+                    <td><span class="badge" style="background:${(turRenk[i.tur]||'#888')}20;color:${turRenk[i.tur]||'#888'};border:1px solid ${(turRenk[i.tur]||'#888')}40">${turIsim[i.tur]||i.tur}</span></td>
+                    <td style="color:#888;font-size:12px">${esc(i.aciklama||'-')}</td>
+                    <td style="color:#666;font-size:12px">${esc(i.tarih||'-')}</td>
+                </tr>`;
+            });
+            html+='</tbody></table>';islemAlan.innerHTML=html;
+        }
+    }catch(e){
+        document.getElementById('adminBakiyeListesi').innerHTML='<div class="bos-durum">Veriler yuklenemedi.</div>';
+    }
+}
+
+async function adminBakiyeEkle(){
+    const kullanici_id=document.getElementById('bKullaniciId').value;
+    const miktar=document.getElementById('bMiktar').value;
+    const aciklama=document.getElementById('bAciklama').value.trim()||'Admin tarafindan eklendi';
+    const msj=document.getElementById('bakiyeMsj');
+    if(!kullanici_id||!miktar){msj.style.color='#ff6b6b';msj.textContent='Kullanici ID ve miktar zorunlu.';return}
+    try{
+        const r=await fetch('/data/admin/bakiye_ekle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kullanici_id:parseInt(kullanici_id),miktar:parseFloat(miktar),aciklama})});
+        const d=await r.json();
+        if(d.basarili){
+            msj.style.color='#5dd879';msj.textContent=d.mesaj;
+            document.getElementById('bKullaniciId').value='';document.getElementById('bMiktar').value='';document.getElementById('bAciklama').value='';
+            adminBakiyeListesiYukle();
+        }else{msj.style.color='#ff6b6b';msj.textContent=d.mesaj}
+    }catch(e){msj.style.color='#ff6b6b';msj.textContent='Baglanti hatasi.'}
 }
 
 oturumKontrolAdmin();

@@ -71,7 +71,9 @@ def db_kur():
             toplam_oran REAL NOT NULL,
             toplam_olasilik REAL NOT NULL,
             mac_sayisi INTEGER NOT NULL,
-            tarih TEXT NOT NULL
+            tarih TEXT NOT NULL,
+            sonuc TEXT DEFAULT 'bekliyor',
+            isim TEXT DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS dogrulama_kodlari (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,7 +83,41 @@ def db_kur():
             olusturma TEXT NOT NULL,
             kullanildi INTEGER DEFAULT 0
         );
+        CREATE TABLE IF NOT EXISTS market_urunler (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            isim TEXT NOT NULL,
+            aciklama TEXT DEFAULT '',
+            fiyat REAL NOT NULL,
+            kategori TEXT DEFAULT 'Genel',
+            resim TEXT DEFAULT '',
+            aktif INTEGER DEFAULT 1,
+            olusturma TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS kullanici_bakiye (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kullanici_id INTEGER UNIQUE NOT NULL,
+            bakiye REAL DEFAULT 0,
+            guncelleme TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS bakiye_islemleri (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kullanici_id INTEGER NOT NULL,
+            miktar REAL NOT NULL,
+            tur TEXT NOT NULL,
+            aciklama TEXT DEFAULT '',
+            tarih TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS shopier_odemeler (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kullanici_id INTEGER NOT NULL,
+            siparis_no TEXT NOT NULL,
+            miktar REAL NOT NULL,
+            durum TEXT DEFAULT 'bekliyor',
+            tarih TEXT NOT NULL,
+            shopier_data TEXT DEFAULT ''
+        );
     """)
+    # Migration: eski tablolara yeni kolonlar ekle
     for col, default in [("eposta_dogrulanmis", "0"), ("profil_foto", "''")]:
         try:
             conn.execute(f"ALTER TABLE kullanicilar ADD COLUMN {col} DEFAULT {default}")
@@ -89,6 +125,10 @@ def db_kur():
             pass
     try:
         conn.execute("ALTER TABLE kuponlar ADD COLUMN sonuc TEXT DEFAULT 'bekliyor'")
+    except:
+        pass
+    try:
+        conn.execute("ALTER TABLE kuponlar ADD COLUMN isim TEXT DEFAULT ''")
     except:
         pass
     kurucu_sifre_hash = hashlib.sha256("admin".encode()).hexdigest()
@@ -202,8 +242,8 @@ def kayit():
         return jsonify({"basarili": False, "mesaj": "Tum alanlari doldurunuz."})
     if len(kullanici_adi) < 3:
         return jsonify({"basarili": False, "mesaj": "Kullanici adi en az 3 karakter olmali."})
-    if len(sifre) < 4:
-        return jsonify({"basarili": False, "mesaj": "Sifre en az 4 karakter olmali."})
+    if len(sifre) < 8:
+        return jsonify({"basarili": False, "mesaj": "Sifre en az 8 karakter olmali."})
     if "@" not in email or "." not in email:
         return jsonify({"basarili": False, "mesaj": "Gecerli bir email giriniz."})
 
@@ -349,8 +389,8 @@ def sifre_degistir():
     yeni = (data.get("yeni_sifre") or "").strip()
     if not eski or not yeni:
         return jsonify({"basarili": False, "mesaj": "Tum alanlari doldurunuz."})
-    if len(yeni) < 4:
-        return jsonify({"basarili": False, "mesaj": "Yeni sifre en az 4 karakter olmali."})
+    if len(yeni) < 8:
+        return jsonify({"basarili": False, "mesaj": "Yeni sifre en az 8 karakter olmali."})
     eski_hash = hashlib.sha256(eski.encode()).hexdigest()
     conn = db_baglanti()
     user = conn.execute("SELECT id FROM kullanicilar WHERE id=? AND sifre_hash=?", (session["kullanici_id"], eski_hash)).fetchone()
@@ -494,8 +534,8 @@ def sifre_sifirla():
     yeni_sifre = (data.get("yeni_sifre") or "").strip()
     if not email or not girilen_kod or not yeni_sifre:
         return jsonify({"basarili": False, "mesaj": "Tum alanlari doldurunuz."})
-    if len(yeni_sifre) < 4:
-        return jsonify({"basarili": False, "mesaj": "Sifre en az 4 karakter olmali."})
+    if len(yeni_sifre) < 8:
+        return jsonify({"basarili": False, "mesaj": "Sifre en az 8 karakter olmali."})
     anahtar = f"sifre_{email}"
     sayac = kod_deneme_sayaci.get(anahtar, {"sayi": 0, "zaman": ist_simdi()})
     if (ist_simdi() - sayac["zaman"]).total_seconds() > 600:
@@ -535,13 +575,14 @@ def kupon_kaydet():
     maclar = data.get("maclar", [])
     toplam_oran = data.get("toplam_oran", 1.0)
     toplam_olasilik = data.get("toplam_olasilik", 0)
+    isim = (data.get("isim") or "").strip()
     if not maclar:
         return jsonify({"basarili": False, "mesaj": "Kupon bos."})
     conn = db_baglanti()
     conn.execute("DELETE FROM kuponlar WHERE tarih < datetime('now', '-30 days')")
     conn.execute(
-        "INSERT INTO kuponlar (kullanici_id, maclar, toplam_oran, toplam_olasilik, mac_sayisi, tarih) VALUES (?, ?, ?, ?, ?, ?)",
-        (session["kullanici_id"], json.dumps(maclar, ensure_ascii=False), toplam_oran, toplam_olasilik, len(maclar), ist_simdi().strftime("%Y-%m-%d %H:%M:%S"))
+        "INSERT INTO kuponlar (kullanici_id, maclar, toplam_oran, toplam_olasilik, mac_sayisi, tarih, isim) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (session["kullanici_id"], json.dumps(maclar, ensure_ascii=False), toplam_oran, toplam_olasilik, len(maclar), ist_simdi().strftime("%Y-%m-%d %H:%M:%S"), isim)
     )
     conn.commit()
     conn.close()
@@ -555,7 +596,7 @@ def kuponlarim():
     conn.execute("DELETE FROM kuponlar WHERE tarih < datetime('now', '-30 days')")
     conn.commit()
     kuponlar = conn.execute(
-        "SELECT id, maclar, toplam_oran, toplam_olasilik, mac_sayisi, tarih, COALESCE(sonuc,'bekliyor') as sonuc FROM kuponlar WHERE kullanici_id=? ORDER BY id DESC",
+        "SELECT id, maclar, toplam_oran, toplam_olasilik, mac_sayisi, tarih, COALESCE(sonuc,'bekliyor') as sonuc, COALESCE(isim,'') as isim FROM kuponlar WHERE kullanici_id=? ORDER BY id DESC",
         (session["kullanici_id"],)
     ).fetchall()
     conn.close()
@@ -568,7 +609,8 @@ def kuponlarim():
             "toplam_olasilik": k["toplam_olasilik"],
             "mac_sayisi": k["mac_sayisi"],
             "tarih": k["tarih"],
-            "sonuc": k["sonuc"]
+            "sonuc": k["sonuc"],
+            "isim": k["isim"]
         })
     return jsonify({"basarili": True, "kuponlar": sonuc})
 
@@ -630,6 +672,120 @@ def chat_gecmis():
     conn.close()
     return jsonify({"mesajlar": [dict(m) for m in reversed(mesajlar)]})
 
+# ==================== BAKIYE ====================
+
+@app.route("/data/bakiye")
+def bakiye():
+    if "kullanici_id" not in session:
+        return jsonify({"basarili": False, "bakiye": 0})
+    conn = db_baglanti()
+    row = conn.execute("SELECT bakiye FROM kullanici_bakiye WHERE kullanici_id=?", (session["kullanici_id"],)).fetchone()
+    islemler = conn.execute(
+        "SELECT miktar, tur, aciklama, tarih FROM bakiye_islemleri WHERE kullanici_id=? ORDER BY id DESC LIMIT 20",
+        (session["kullanici_id"],)
+    ).fetchall()
+    conn.close()
+    return jsonify({
+        "basarili": True,
+        "bakiye": row["bakiye"] if row else 0,
+        "islemler": [dict(i) for i in islemler]
+    })
+
+# ==================== MARKET ====================
+
+@app.route("/data/market/urunler")
+def market_urunler():
+    conn = db_baglanti()
+    urunler = conn.execute("SELECT id, isim, aciklama, fiyat, kategori, resim FROM market_urunler WHERE aktif=1 ORDER BY kategori, fiyat").fetchall()
+    conn.close()
+    return jsonify({"basarili": True, "urunler": [dict(u) for u in urunler]})
+
+@app.route("/data/market/satin_al", methods=["POST"])
+def market_satin_al():
+    if "kullanici_id" not in session:
+        return jsonify({"basarili": False, "mesaj": "Giris yapmaniz gerekiyor."})
+    data = request.get_json() or {}
+    urun_id = data.get("urun_id")
+    if not urun_id:
+        return jsonify({"basarili": False, "mesaj": "Urun secilmedi."})
+    conn = db_baglanti()
+    urun = conn.execute("SELECT * FROM market_urunler WHERE id=? AND aktif=1", (urun_id,)).fetchone()
+    if not urun:
+        conn.close()
+        return jsonify({"basarili": False, "mesaj": "Urun bulunamadi."})
+    bakiye_row = conn.execute("SELECT bakiye FROM kullanici_bakiye WHERE kullanici_id=?", (session["kullanici_id"],)).fetchone()
+    bakiye = bakiye_row["bakiye"] if bakiye_row else 0
+    if bakiye < urun["fiyat"]:
+        conn.close()
+        return jsonify({"basarili": False, "mesaj": f"Yetersiz bakiye. Bakiyeniz: {bakiye:.2f} TL, Urun fiyati: {urun['fiyat']:.2f} TL"})
+    yeni_bakiye = bakiye - urun["fiyat"]
+    if bakiye_row:
+        conn.execute("UPDATE kullanici_bakiye SET bakiye=?, guncelleme=? WHERE kullanici_id=?",
+                     (yeni_bakiye, ist_simdi().strftime("%Y-%m-%d %H:%M:%S"), session["kullanici_id"]))
+    else:
+        conn.execute("INSERT INTO kullanici_bakiye (kullanici_id, bakiye, guncelleme) VALUES (?, ?, ?)",
+                     (session["kullanici_id"], yeni_bakiye, ist_simdi().strftime("%Y-%m-%d %H:%M:%S")))
+    conn.execute("INSERT INTO bakiye_islemleri (kullanici_id, miktar, tur, aciklama, tarih) VALUES (?, ?, ?, ?, ?)",
+                 (session["kullanici_id"], -urun["fiyat"], "satin_al", f"Satin alindi: {urun['isim']}", ist_simdi().strftime("%Y-%m-%d %H:%M:%S")))
+    conn.commit()
+    conn.close()
+    return jsonify({"basarili": True, "mesaj": f"'{urun['isim']}' basariyla satin alindi!", "yeni_bakiye": yeni_bakiye})
+
+# ==================== SHOPIER ====================
+
+@app.route("/data/shopier/odeme_baslat", methods=["POST"])
+def shopier_odeme_baslat():
+    if "kullanici_id" not in session:
+        return jsonify({"basarili": False, "mesaj": "Giris yapmaniz gerekiyor."})
+    data = request.get_json() or {}
+    miktar = data.get("miktar", 0)
+    if not miktar or float(miktar) <= 0:
+        return jsonify({"basarili": False, "mesaj": "Gecersiz miktar."})
+    # Shopier API entegrasyonu - API anahtari gelince eklenecek
+    siparis_no = f"299AI-{session['kullanici_id']}-{secrets.token_hex(4).upper()}"
+    conn = db_baglanti()
+    conn.execute(
+        "INSERT INTO shopier_odemeler (kullanici_id, siparis_no, miktar, durum, tarih) VALUES (?, ?, ?, ?, ?)",
+        (session["kullanici_id"], siparis_no, float(miktar), "bekliyor", ist_simdi().strftime("%Y-%m-%d %H:%M:%S"))
+    )
+    conn.commit()
+    conn.close()
+    # TODO: Shopier API ile odeme linki olustur
+    return jsonify({
+        "basarili": True,
+        "mesaj": "Odeme sistemi yakin zamanda aktif olacak.",
+        "siparis_no": siparis_no,
+        "durum": "yakin_zamanda"
+    })
+
+@app.route("/data/shopier/webhook", methods=["POST"])
+def shopier_webhook():
+    # TODO: Shopier webhook dogrulamasi
+    data = request.get_json() or {}
+    siparis_no = data.get("siparis_no", "")
+    durum = data.get("durum", "")
+    conn = db_baglanti()
+    odeme = conn.execute("SELECT * FROM shopier_odemeler WHERE siparis_no=?", (siparis_no,)).fetchone()
+    if odeme and durum == "odendi":
+        conn.execute("UPDATE shopier_odemeler SET durum='odendi', shopier_data=? WHERE siparis_no=?",
+                     (json.dumps(data), siparis_no))
+        bakiye_row = conn.execute("SELECT bakiye FROM kullanici_bakiye WHERE kullanici_id=?", (odeme["kullanici_id"],)).fetchone()
+        mevcut = bakiye_row["bakiye"] if bakiye_row else 0
+        yeni = mevcut + odeme["miktar"]
+        if bakiye_row:
+            conn.execute("UPDATE kullanici_bakiye SET bakiye=?, guncelleme=? WHERE kullanici_id=?",
+                         (yeni, ist_simdi().strftime("%Y-%m-%d %H:%M:%S"), odeme["kullanici_id"]))
+        else:
+            conn.execute("INSERT INTO kullanici_bakiye (kullanici_id, bakiye, guncelleme) VALUES (?, ?, ?)",
+                         (odeme["kullanici_id"], yeni, ist_simdi().strftime("%Y-%m-%d %H:%M:%S")))
+        conn.execute("INSERT INTO bakiye_islemleri (kullanici_id, miktar, tur, aciklama, tarih) VALUES (?, ?, ?, ?, ?)",
+                     (odeme["kullanici_id"], odeme["miktar"], "yukle", f"Shopier odeme: {siparis_no}", ist_simdi().strftime("%Y-%m-%d %H:%M:%S")))
+        conn.commit()
+    conn.close()
+    return jsonify({"basarili": True})
+
+# ==================== ADMIN ====================
+
 @app.route("/data/admin/kuponlar")
 def admin_kuponlar():
     if not rol_yetkili("admin"):
@@ -638,7 +794,7 @@ def admin_kuponlar():
     kuponlar = conn.execute(
         """SELECT k.id, k.kullanici_id, k.maclar, k.toplam_oran, k.toplam_olasilik,
                   k.mac_sayisi, k.tarih, COALESCE(k.sonuc,'bekliyor') as sonuc,
-                  u.kullanici_adi
+                  COALESCE(k.isim,'') as isim, u.kullanici_adi
            FROM kuponlar k
            LEFT JOIN kullanicilar u ON u.id = k.kullanici_id
            ORDER BY k.id DESC LIMIT 200"""
@@ -654,6 +810,7 @@ def admin_kuponlar():
             "toplam_olasilik": k["toplam_olasilik"],
             "tarih": k["tarih"],
             "sonuc": k["sonuc"],
+            "isim": k["isim"],
             "maclar": json.loads(k["maclar"])
         })
     return jsonify({"basarili": True, "kuponlar": sonuc_liste})
@@ -813,6 +970,9 @@ def admin_istatistik():
     kazanan_kupon = conn.execute("SELECT COUNT(*) FROM kuponlar WHERE sonuc='kazandi'").fetchone()[0]
     kaybeden_kupon = conn.execute("SELECT COUNT(*) FROM kuponlar WHERE sonuc='kaybetti'").fetchone()[0]
     bekleyen_kupon = conn.execute("SELECT COUNT(*) FROM kuponlar WHERE COALESCE(sonuc,'bekliyor')='bekliyor'").fetchone()[0]
+    toplam_urun = conn.execute("SELECT COUNT(*) FROM market_urunler WHERE aktif=1").fetchone()[0]
+    toplam_bakiye = conn.execute("SELECT COALESCE(SUM(bakiye),0) FROM kullanici_bakiye").fetchone()[0]
+    toplam_satin_al = conn.execute("SELECT COUNT(*) FROM bakiye_islemleri WHERE tur='satin_al'").fetchone()[0]
     conn.close()
 
     mac_sayisi = 0
@@ -852,7 +1012,10 @@ def admin_istatistik():
         "toplam_kupon": toplam_kupon,
         "kazanan_kupon": kazanan_kupon,
         "kaybeden_kupon": kaybeden_kupon,
-        "bekleyen_kupon": bekleyen_kupon
+        "bekleyen_kupon": bekleyen_kupon,
+        "toplam_urun": toplam_urun,
+        "toplam_bakiye": round(toplam_bakiye, 2),
+        "toplam_satin_al": toplam_satin_al
     })
 
 @app.route("/data/admin/mac_detay")
@@ -881,6 +1044,125 @@ def admin_mac_detay():
         return jsonify({"basarili": True, "lig_mac": lig_mac, "kaynak": veri.get("kaynak", "")})
     except:
         return jsonify({"basarili": True, "lig_mac": {}, "kaynak": ""})
+
+# ==================== ADMIN MARKET ====================
+
+@app.route("/data/admin/market/urunler")
+def admin_market_urunler():
+    if not rol_yetkili("admin"):
+        return jsonify({"basarili": False, "mesaj": "Yetkiniz yok."}), 403
+    conn = db_baglanti()
+    urunler = conn.execute("SELECT * FROM market_urunler ORDER BY id DESC").fetchall()
+    conn.close()
+    return jsonify({"basarili": True, "urunler": [dict(u) for u in urunler]})
+
+@app.route("/data/admin/market/urun_ekle", methods=["POST"])
+def admin_market_urun_ekle():
+    if not rol_yetkili("admin"):
+        return jsonify({"basarili": False, "mesaj": "Yetkiniz yok."}), 403
+    data = request.get_json() or {}
+    isim = (data.get("isim") or "").strip()
+    aciklama = (data.get("aciklama") or "").strip()
+    fiyat = data.get("fiyat", 0)
+    kategori = (data.get("kategori") or "Genel").strip()
+    resim = (data.get("resim") or "").strip()
+    if not isim or not fiyat:
+        return jsonify({"basarili": False, "mesaj": "Urun adi ve fiyati gerekli."})
+    conn = db_baglanti()
+    conn.execute(
+        "INSERT INTO market_urunler (isim, aciklama, fiyat, kategori, resim, aktif, olusturma) VALUES (?, ?, ?, ?, ?, 1, ?)",
+        (isim, aciklama, float(fiyat), kategori, resim, ist_simdi().strftime("%Y-%m-%d %H:%M:%S"))
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"basarili": True, "mesaj": "Urun eklendi."})
+
+@app.route("/data/admin/market/urun_guncelle", methods=["POST"])
+def admin_market_urun_guncelle():
+    if not rol_yetkili("admin"):
+        return jsonify({"basarili": False, "mesaj": "Yetkiniz yok."}), 403
+    data = request.get_json() or {}
+    uid = data.get("id")
+    isim = (data.get("isim") or "").strip()
+    aciklama = (data.get("aciklama") or "").strip()
+    fiyat = data.get("fiyat", 0)
+    kategori = (data.get("kategori") or "Genel").strip()
+    resim = (data.get("resim") or "").strip()
+    aktif = 1 if data.get("aktif", True) else 0
+    if not uid or not isim:
+        return jsonify({"basarili": False, "mesaj": "Eksik veri."})
+    conn = db_baglanti()
+    conn.execute(
+        "UPDATE market_urunler SET isim=?, aciklama=?, fiyat=?, kategori=?, resim=?, aktif=? WHERE id=?",
+        (isim, aciklama, float(fiyat), kategori, resim, aktif, uid)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"basarili": True, "mesaj": "Urun guncellendi."})
+
+@app.route("/data/admin/market/urun_sil", methods=["POST"])
+def admin_market_urun_sil():
+    if not rol_yetkili("admin"):
+        return jsonify({"basarili": False, "mesaj": "Yetkiniz yok."}), 403
+    data = request.get_json() or {}
+    uid = data.get("id")
+    if not uid:
+        return jsonify({"basarili": False, "mesaj": "Urun ID gerekli."})
+    conn = db_baglanti()
+    conn.execute("DELETE FROM market_urunler WHERE id=?", (uid,))
+    conn.commit()
+    conn.close()
+    return jsonify({"basarili": True, "mesaj": "Urun silindi."})
+
+@app.route("/data/admin/bakiye_ekle", methods=["POST"])
+def admin_bakiye_ekle():
+    if not rol_yetkili("admin"):
+        return jsonify({"basarili": False, "mesaj": "Yetkiniz yok."}), 403
+    data = request.get_json() or {}
+    kullanici_id = data.get("kullanici_id")
+    miktar = data.get("miktar", 0)
+    aciklama = (data.get("aciklama") or "Admin tarafindan eklendi").strip()
+    if not kullanici_id or float(miktar) == 0:
+        return jsonify({"basarili": False, "mesaj": "Kullanici ve miktar gerekli."})
+    conn = db_baglanti()
+    row = conn.execute("SELECT bakiye FROM kullanici_bakiye WHERE kullanici_id=?", (kullanici_id,)).fetchone()
+    mevcut = row["bakiye"] if row else 0
+    yeni = mevcut + float(miktar)
+    if row:
+        conn.execute("UPDATE kullanici_bakiye SET bakiye=?, guncelleme=? WHERE kullanici_id=?",
+                     (yeni, ist_simdi().strftime("%Y-%m-%d %H:%M:%S"), kullanici_id))
+    else:
+        conn.execute("INSERT INTO kullanici_bakiye (kullanici_id, bakiye, guncelleme) VALUES (?, ?, ?)",
+                     (kullanici_id, yeni, ist_simdi().strftime("%Y-%m-%d %H:%M:%S")))
+    conn.execute("INSERT INTO bakiye_islemleri (kullanici_id, miktar, tur, aciklama, tarih) VALUES (?, ?, ?, ?, ?)",
+                 (kullanici_id, float(miktar), "admin_ekle", aciklama, ist_simdi().strftime("%Y-%m-%d %H:%M:%S")))
+    conn.commit()
+    conn.close()
+    return jsonify({"basarili": True, "mesaj": f"Bakiye guncellendi. Yeni bakiye: {yeni:.2f} TL"})
+
+@app.route("/data/admin/bakiye_listesi")
+def admin_bakiye_listesi():
+    if not rol_yetkili("admin"):
+        return jsonify({"basarili": False, "mesaj": "Yetkiniz yok."}), 403
+    conn = db_baglanti()
+    rows = conn.execute("""
+        SELECT kb.kullanici_id, u.kullanici_adi, kb.bakiye, kb.guncelleme
+        FROM kullanici_bakiye kb
+        LEFT JOIN kullanicilar u ON u.id = kb.kullanici_id
+        ORDER BY kb.bakiye DESC
+    """).fetchall()
+    islemler = conn.execute("""
+        SELECT bi.id, bi.kullanici_id, u.kullanici_adi, bi.miktar, bi.tur, bi.aciklama, bi.tarih
+        FROM bakiye_islemleri bi
+        LEFT JOIN kullanicilar u ON u.id = bi.kullanici_id
+        ORDER BY bi.id DESC LIMIT 100
+    """).fetchall()
+    conn.close()
+    return jsonify({
+        "basarili": True,
+        "bakiyeler": [dict(r) for r in rows],
+        "islemler": [dict(i) for i in islemler]
+    })
 
 def bot_cevap(mesaj):
     m = mesaj.lower().strip()
@@ -944,12 +1226,19 @@ def bot_cevap(mesaj):
                 "Her takimin ortalama gol beklentisi hesaplanir.\n"
                 "60+ bahis marketi icin olasilik hesaplanir.")
 
+    if any(k in m for k in ["market", "urun", "satin al", "bakiye"]):
+        return ("**AI Market**\n\n"
+                "AI Market'ten VIP uyelik, analiz paketleri ve ozel icerikler satin alabilirsiniz.\n"
+                "Bakiyenizi Shopier ile yukleyebilirsiniz.\n"
+                "Menu > AI Market'ten erisebilirsiniz.")
+
     if any(k in m for k in ["yardim", "ne yapabilirsin", "help"]):
         return ("**Size yardimci olabilecegim konular:**\n\n"
                 "Mac sayisi ve lig bilgileri\n"
                 "Gunun en iyi bahis onerileri\n"
                 "Oran ve bahis aciklamalari\n"
                 "Kupon ve kombine nasil olusturulur\n"
+                "AI Market ve bakiye bilgileri\n"
                 "AI analiz sistemi hakkinda bilgi")
 
     if any(k in m for k in ["tesekkur", "sag ol", "tamam", "harika", "super"]):
