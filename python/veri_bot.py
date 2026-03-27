@@ -216,7 +216,7 @@ def sistemi_guncelle():
 
     try:
         from api_canli import api_ile_guncelle
-        basarili = api_ile_guncelle(gun_sayisi=2)
+        basarili = api_ile_guncelle(gun_sayisi=7)
         if basarili:
             print(f"[{su_an}] API ile guncelleme basarili!")
             return
