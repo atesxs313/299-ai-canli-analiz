@@ -74,6 +74,9 @@ onlyBuiltDependencies:
   - unrs-resolver
 
 overrides:
+  # Security: update picomatch to patched versions
+  "picomatch@2": "2.3.2"
+  "picomatch@4": "4.0.4"
   # replit uses linux-x64 only, we can exclude all other platforms
   "esbuild>@esbuild/darwin-arm64": "-"
   "esbuild>@esbuild/darwin-x64": "-"
