@@ -219,61 +219,18 @@ def sistemi_guncelle():
         basarili = api_ile_guncelle(gun_sayisi=7)
         if basarili:
             print(f"[{su_an}] API ile guncelleme basarili!")
-            return
         else:
-            print(f"[{su_an}] API basarisiz, yedek sisteme geciliyor...")
+            print(f"[{su_an}] API'den veri cekilemedi, simulasyon devre disi.")
     except Exception as e:
-        print(f"[{su_an}] API hatasi: {e}, yedek sisteme geciliyor...")
+        print(f"[{su_an}] API hatasi: {e}")
 
-    MAC_ID_SAYACI["deger"] = 1000
 
-    tum_maclar = []
-    gun_bazli = {}
-
-    for gun_index in range(8):
-        tarih = simdi + timedelta(days=gun_index)
-        tarih_str = tarih.strftime("%Y-%m-%d")
-        gun_bazli[tarih_str] = {"Futbol": [], "Basketbol": [], "Voleybol": [], "Tenis": []}
-
-        for spor, ligler in SPORLAR.items():
-            for lig in ligler:
-                sayac = gun_mac_sayisi(lig, gun_index, tarih, tarih_str)
-                for mac_i in range(sayac):
-                    try:
-                        mac = mac_olustur(spor, lig, tarih_str, mac_i)
-                        if mac:
-                            tum_maclar.append(mac)
-                            gun_bazli[tarih_str][spor].append(mac)
-                    except Exception as e:
-                        print(f"Mac olusturma hatasi ({lig['isim']}): {e}")
-
-    tum_maclar.sort(key=lambda m: (m["tarih"], m["saat"], m["spor"], m["lig"]))
-
-    gun_ozeti = {}
-    for tarih_str, sporlar in gun_bazli.items():
-        toplam = sum(len(v) for v in sporlar.values())
-        gun_ozeti[tarih_str] = {
-            "toplam": toplam,
-            "Futbol": len(sporlar["Futbol"]),
-            "Basketbol": len(sporlar["Basketbol"]),
-            "Voleybol": len(sporlar["Voleybol"]),
-            "Tenis": len(sporlar["Tenis"]),
-        }
-
-    veri = {
-        "guncelleme": su_an,
-        "macSayisi": len(tum_maclar),
-        "gunOzeti": gun_ozeti,
-        "maclar": tum_maclar
-    }
-
-    dosya_yolu = os.path.join(os.path.dirname(__file__), "api_veri.json")
-    with open(dosya_yolu, "w", encoding="utf-8") as f:
-        json.dump(veri, f, ensure_ascii=False, separators=(',', ':'))
-
-    print(f"[{su_an}] Yedek sistem ile guncelleme: {len(tum_maclar)} mac kaydedildi.")
-    for t, o in sorted(gun_ozeti.items()):
-        print(f"  {t}: {o['toplam']} mac (F:{o['Futbol']} B:{o['Basketbol']} V:{o['Voleybol']} T:{o['Tenis']})")
+def canli_guncelle_wrapper():
+    try:
+        from api_canli import canli_maclar_guncelle
+        canli_maclar_guncelle()
+    except Exception as e:
+        print(f"[CANLI HATA] {e}")
 
 
 def guncelleme_zamanlayici():
@@ -282,10 +239,11 @@ def guncelleme_zamanlayici():
     schedule.every(6).hours.do(sistemi_guncelle)
     schedule.every().day.at("00:00").do(sistemi_guncelle)
     schedule.every().day.at("00:05").do(sistemi_guncelle)
+    schedule.every(30).seconds.do(canli_guncelle_wrapper)
 
     while True:
         schedule.run_pending()
-        time.sleep(60)
+        time.sleep(10)
 
 
 if __name__ == "__main__":

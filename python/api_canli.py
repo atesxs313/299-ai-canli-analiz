@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import random
 import urllib.request
 import urllib.error
@@ -173,8 +174,20 @@ ODDS_API_SPORT_HARITASI = {
     "soccer_uefa_europa_league": {"isim": "🟠 UEFA Avrupa Ligi", "spor": "Futbol"},
     "basketball_nba": {"isim": "🏀 NBA", "spor": "Basketbol"},
     "basketball_euroleague": {"isim": "🏀 EuroLeague", "spor": "Basketbol"},
-    "tennis_atp_french_open": {"isim": "🎾 Roland Garros", "spor": "Tenis"},
+    "basketball_nbl": {"isim": "🏀 NBL (Avustralya)", "spor": "Basketbol"},
+    "tennis_atp_french_open": {"isim": "🎾 Roland Garros (ATP)", "spor": "Tenis"},
     "tennis_wta_french_open": {"isim": "🎾 Roland Garros (WTA)", "spor": "Tenis"},
+    "tennis_atp_wimbledon": {"isim": "🎾 Wimbledon (ATP)", "spor": "Tenis"},
+    "tennis_wta_wimbledon": {"isim": "🎾 Wimbledon (WTA)", "spor": "Tenis"},
+    "tennis_atp_us_open": {"isim": "🎾 US Open (ATP)", "spor": "Tenis"},
+    "tennis_wta_us_open": {"isim": "🎾 US Open (WTA)", "spor": "Tenis"},
+    "tennis_atp_aus_open": {"isim": "🎾 Avustralya Açık (ATP)", "spor": "Tenis"},
+    "tennis_wta_aus_open": {"isim": "🎾 Avustralya Açık (WTA)", "spor": "Tenis"},
+    "tennis_atp_miami_open": {"isim": "🎾 Miami Open (ATP)", "spor": "Tenis"},
+    "tennis_wta_miami_open": {"isim": "🎾 Miami Open (WTA)", "spor": "Tenis"},
+    "tennis_atp_monte_carlo": {"isim": "🎾 Monte Carlo (ATP)", "spor": "Tenis"},
+    "volleyball_wch_women_u20": {"isim": "🏐 Voleybol Dünya Şampiyonası (Kadın U20)", "spor": "Voleybol"},
+    "volleyball_wcl": {"isim": "🏐 Uluslar Ligi", "spor": "Voleybol"},
 }
 
 MAC_ID_SAYACI = {"deger": 5000}
@@ -309,12 +322,14 @@ def odds_api_maclar_cek():
     mac_id = 70000
     eklenecek_sporlar = list(ODDS_API_SPORT_HARITASI.keys())
 
-    for sport_key in eklenecek_sporlar:
+    for idx_sport, sport_key in enumerate(eklenecek_sporlar):
+        if idx_sport > 0:
+            time.sleep(0.8)
         lig_bilgi = ODDS_API_SPORT_HARITASI[sport_key]
         spor = lig_bilgi["spor"]
         veri = odds_api_istek(
             f"sports/{sport_key}/events",
-            {"dateFormat": "iso", "daysFrom": 0, "daysTo": 2}
+            {"dateFormat": "iso", "daysFrom": 0, "daysTo": 7}
         )
         if not veri or not isinstance(veri, list):
             continue
@@ -426,75 +441,7 @@ def api_ile_guncelle(gun_sayisi=2):
         print("[API] API-Football key yok, bu kisim atlaniyor")
 
     from veri_bot import ist_simdi
-    from market_olusturucu import (
-        ms_olasiliklari_hesapla, olasiliktan_oran, diger_spor_marketleri
-    )
-    from ligler import SPORLAR
-
     simdi = ist_simdi()
-    diger_maclar = []
-    diger_id = 50000
-
-    for gun_index in range(gun_sayisi):
-        tarih = simdi + timedelta(days=gun_index)
-        tarih_str = tarih.strftime("%Y-%m-%d")
-
-        for spor in ["Basketbol", "Voleybol", "Tenis"]:
-            ligler = SPORLAR.get(spor, [])
-            for lig in ligler:
-                from veri_bot import gun_mac_sayisi, MAC_SAATLERI
-                sayac = gun_mac_sayisi(lig, gun_index, tarih, tarih_str)
-                takimlar = lig.get("takimlar", [])
-                if len(takimlar) < 2:
-                    continue
-
-                for mac_i in range(sayac):
-                    diger_id += 1
-                    seed_val = hash(lig["id"] + tarih_str + str(mac_i)) % 999999
-                    rng = random.Random(seed_val)
-                    secilen = rng.sample(takimlar, 2)
-
-                    ev_gucu = takim_gucu_tahmin(secilen[0])
-                    dep_gucu = takim_gucu_tahmin(secilen[1])
-                    ev_avantaj = 3
-                    ms = ms_olasiliklari_hesapla(ev_gucu + ev_avantaj, dep_gucu, spor)
-
-                    saatler = {"Basketbol": ["19:00","19:30","20:00","20:30","21:00","21:30","22:00"],
-                               "Voleybol": ["16:00","17:00","18:00","19:00","20:00"],
-                               "Tenis": ["12:00","13:00","14:00","15:00","16:00","17:00","18:00"]}
-                    saat = rng.choice(saatler.get(spor, ["20:00"]))
-
-                    ekstra = diger_spor_marketleri(spor, ms)
-
-                    mac = {
-                        "id": diger_id,
-                        "spor": spor,
-                        "lig": lig["isim"],
-                        "ligId": lig["id"],
-                        "ulke": lig.get("ulke", ""),
-                        "evSahibi": secilen[0],
-                        "deplasman": secilen[1],
-                        "tarih": tarih_str,
-                        "saat": saat,
-                        "oranlar": {
-                            "1": olasiliktan_oran(ms["1"]),
-                            "0": olasiliktan_oran(ms["0"]) if ms["0"] > 0 else 0.00,
-                            "2": olasiliktan_oran(ms["2"]),
-                        },
-                        "aiIhtimaller": {
-                            "1": max(5, min(95, round(ms["1"] * 100))),
-                            "0": max(5, min(95, round(ms["0"] * 100))) if ms["0"] > 0 else 0,
-                            "2": max(5, min(95, round(ms["2"] * 100))),
-                        },
-                        "ekstraBahisler": ekstra,
-                        "durum": "planlanmis",
-                    }
-                    diger_maclar.append(mac)
-
-                    if tarih_str not in gun_ozeti:
-                        gun_ozeti[tarih_str] = {"toplam": 0, "Futbol": 0, "Basketbol": 0, "Voleybol": 0, "Tenis": 0}
-                    gun_ozeti[tarih_str][spor] = gun_ozeti[tarih_str].get(spor, 0) + 1
-                    gun_ozeti[tarih_str]["toplam"] = gun_ozeti[tarih_str].get("toplam", 0) + 1
 
     odds_maclar = []
     if ODDS_API_KEY:
@@ -509,7 +456,7 @@ def api_ile_guncelle(gun_sayisi=2):
             gun_ozeti[tarih_str][spor] = gun_ozeti[tarih_str].get(spor, 0) + 1
             gun_ozeti[tarih_str]["toplam"] = gun_ozeti[tarih_str].get("toplam", 0) + 1
 
-    tum_maclar = futbol_maclari + diger_maclar + odds_maclar
+    tum_maclar = futbol_maclari + odds_maclar
 
     mac_id_set = set()
     tekrarsiz = []
@@ -531,8 +478,6 @@ def api_ile_guncelle(gun_sayisi=2):
         kaynak_bilgi.append(f"api-football({len(API_FOOTBALL_KEYS)} key)")
     if odds_maclar:
         kaynak_bilgi.append("the-odds-api")
-    if diger_maclar:
-        kaynak_bilgi.append("simulasyon")
 
     veri = {
         "guncelleme": su_an,
@@ -549,8 +494,134 @@ def api_ile_guncelle(gun_sayisi=2):
     print(f"[API] Guncelleme tamamlandi: {len(tekrarsiz)} mac toplam")
     print(f"  API-Football: {len(futbol_maclari)} mac ({len(API_FOOTBALL_KEYS)} key)")
     print(f"  The Odds API: {len(odds_maclar)} mac")
-    print(f"  Simulasyon: {len(diger_maclar)} mac")
     for t, o in sorted(gun_ozeti.items()):
         print(f"  {t}: {o['toplam']} mac (F:{o.get('Futbol',0)} B:{o.get('Basketbol',0)} V:{o.get('Voleybol',0)} T:{o.get('Tenis',0)})")
 
+    return True
+
+
+def canli_maclar_guncelle():
+    """Canlı maçları API-Football'dan çek, JSON dosyasını güncelle."""
+    if not API_FOOTBALL_KEYS:
+        return False
+
+    fixtures = api_istek("fixtures", {"live": "all"})
+    if fixtures is None:
+        return False
+
+    if not fixtures:
+        return True
+
+    dosya_yolu = os.path.join(os.path.dirname(__file__), "api_veri.json")
+    try:
+        with open(dosya_yolu, "r", encoding="utf-8") as f:
+            veri = json.load(f)
+    except Exception:
+        return False
+
+    maclar = veri.get("maclar", [])
+    api_id_to_index = {}
+    for i, m in enumerate(maclar):
+        if m.get("apiId"):
+            api_id_to_index[m["apiId"]] = i
+
+    guncellenen = 0
+    yeni_canli = []
+
+    for fix in fixtures:
+        fixture_data = fix.get("fixture", {})
+        api_id = fixture_data.get("id")
+        status = fixture_data.get("status", {}).get("short", "NS")
+        elapsed = fixture_data.get("status", {}).get("elapsed")
+        goals = fix.get("goals", {})
+        score_home = goals.get("home")
+        score_away = goals.get("away")
+        league = fix.get("league", {})
+        teams = fix.get("teams", {})
+
+        durum = "canli"
+        if status in ["FT", "AET", "PEN"]:
+            durum = "bitmis"
+        elif status in ["PST", "CANC", "ABD"]:
+            durum = "iptal"
+
+        if api_id and api_id in api_id_to_index:
+            idx = api_id_to_index[api_id]
+            maclar[idx]["durum"] = durum
+            if score_home is not None:
+                maclar[idx]["skorEv"] = score_home
+            if score_away is not None:
+                maclar[idx]["skorDep"] = score_away
+            if elapsed is not None:
+                maclar[idx]["dakika"] = elapsed
+            guncellenen += 1
+        else:
+            api_league_id = league.get("id")
+            lig_bilgi = LIG_HARITASI.get(api_league_id, {
+                "id": f"api_{api_league_id}",
+                "isim": f"⚽ {league.get('name', 'Bilinmiyor')}",
+                "spor": "Futbol"
+            })
+            try:
+                fix_date = fixture_data.get("date", "")
+                dt = datetime.fromisoformat(fix_date.replace("Z", "+00:00"))
+                dt_ist = dt.astimezone(IST)
+                tarih_str = dt_ist.strftime("%Y-%m-%d")
+                saat = dt_ist.strftime("%H:%M")
+            except Exception:
+                tarih_str = datetime.now(IST).strftime("%Y-%m-%d")
+                saat = "20:00"
+
+            from market_olusturucu import ms_olasiliklari_hesapla, futbol_marketleri_olustur, olasiliktan_oran
+            ev = teams.get("home", {}).get("name", "?")
+            dep = teams.get("away", {}).get("name", "?")
+            ev_gucu = takim_gucu_tahmin(ev)
+            dep_gucu = takim_gucu_tahmin(dep)
+            ms = ms_olasiliklari_hesapla(ev_gucu + 8, dep_gucu, "Futbol")
+            ekstra = futbol_marketleri_olustur(ev_gucu + 8, dep_gucu, ms)
+
+            yeni = {
+                "id": 90000 + (api_id or 0) % 9000,
+                "apiId": api_id,
+                "spor": "Futbol",
+                "lig": lig_bilgi["isim"],
+                "ligId": lig_bilgi["id"],
+                "ulke": league.get("country", ""),
+                "evSahibi": ev,
+                "deplasman": dep,
+                "tarih": tarih_str,
+                "saat": saat,
+                "oranlar": {
+                    "1": olasiliktan_oran(ms["1"]),
+                    "0": olasiliktan_oran(ms["0"]) if ms["0"] > 0 else 0.00,
+                    "2": olasiliktan_oran(ms["2"]),
+                },
+                "aiIhtimaller": {
+                    "1": max(5, min(95, round(ms["1"] * 100))),
+                    "0": max(5, min(95, round(ms["0"] * 100))) if ms["0"] > 0 else 0,
+                    "2": max(5, min(95, round(ms["2"] * 100))),
+                },
+                "ekstraBahisler": ekstra,
+                "durum": durum,
+            }
+            if score_home is not None:
+                yeni["skorEv"] = score_home
+            if score_away is not None:
+                yeni["skorDep"] = score_away
+            if elapsed is not None:
+                yeni["dakika"] = elapsed
+            yeni_canli.append(yeni)
+
+    if yeni_canli:
+        maclar.extend(yeni_canli)
+
+    veri["maclar"] = maclar
+    veri["macSayisi"] = len(maclar)
+    veri["canliGuncelleme"] = datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
+
+    with open(dosya_yolu, "w", encoding="utf-8") as f:
+        json.dump(veri, f, ensure_ascii=False, separators=(',', ':'))
+
+    canli_sayi = sum(1 for m in maclar if m.get("durum") == "canli")
+    print(f"[CANLI] {guncellenen} maç güncellendi, {len(yeni_canli)} yeni canlı maç eklendi. Toplam canlı: {canli_sayi}")
     return True

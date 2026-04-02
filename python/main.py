@@ -12,9 +12,11 @@ from datetime import datetime, timezone, timedelta
 from flask import Flask, jsonify, send_from_directory, Response, request, session
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "gizli_anahtar_299ai_2024_super_secret")
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.secret_key = os.environ.get("SESSION_SECRET") or os.environ.get("SECRET_KEY", "gizli_anahtar_299ai_2024_super_secret_x7z")
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_NAME'] = 'session_299ai'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
 KLASOR = os.path.dirname(os.path.abspath(__file__))
@@ -207,6 +209,26 @@ def maclar():
         return jsonify({"guncelleme": "Veriler hazırlaniyor...", "maclar": []})
     except Exception as e:
         return jsonify({"guncelleme": "Hata", "maclar": [], "hata": str(e)}), 500
+
+@app.route("/data/canli")
+def canli_maclar():
+    try:
+        with open(VERI_DOSYA, "r", encoding="utf-8") as f:
+            veri = json.load(f)
+        maclar = veri.get("maclar", [])
+        canli = [m for m in maclar if m.get("durum") == "canli"]
+        resp = Response(
+            json.dumps({
+                "canliSayisi": len(canli),
+                "canliGuncelleme": veri.get("canliGuncelleme", veri.get("guncelleme", "")),
+                "maclar": canli
+            }, ensure_ascii=False),
+            content_type="application/json; charset=utf-8"
+        )
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        return resp
+    except Exception as e:
+        return jsonify({"canliSayisi": 0, "maclar": [], "hata": str(e)})
 
 @app.route("/data/yenile", methods=["POST"])
 def yenile():
